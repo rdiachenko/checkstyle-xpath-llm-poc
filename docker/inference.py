@@ -1,6 +1,6 @@
 # inference.py
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from huggingface_hub import snapshot_download, login
+from transformers import LlamaForCausalLM, LlamaTokenizer
+from huggingface_hub import login
 from huggingface_hub.utils import logging
 import torch
 import json
@@ -8,25 +8,8 @@ import sys
 import os
 from typing import Dict, List, Tuple, Optional
 
-MODEL_CONFIG = {
-    "repo_id": "MouezYazidi/CodeLlama-3.2-3B-GGUF",
-    "local_folder": "CodeLlama-3b",
-    "model_params": {
-        "torch_dtype": torch.float16,
-        "device_map": "auto",
-        "low_cpu_mem_usage": True,
-        "trust_remote_code": True
-    },
-    "tokenizer_params": {
-        "trust_remote_code": True,
-        "use_fast": True
-    },
-    "generation_params": {
-        "max_new_tokens": 30,
-        "num_beams": 10,
-        "early_stopping": True
-    }
-}
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import MODEL_CONFIG
 
 # Set up logging
 logging.set_verbosity_info()
@@ -42,39 +25,27 @@ class ModelLoader:
         token = os.getenv('HF_TOKEN')
         if token:
             login(token)
+            print("Successfully logged in to Hugging Face", file=sys.stderr)
         else:
             print("Warning: No Hugging Face token found in HF_TOKEN env var", file=sys.stderr)
 
-    def _ensure_model_files(self) -> str:
-        """Ensure model files are available locally."""
-        if os.path.exists(self.model_path):
-            print("\nModel files already present locally.", file=sys.stderr)
-            return self.model_path
-
-        print("\n=== Downloading Model Files ===", file=sys.stderr)
-        return snapshot_download(
-            repo_id=MODEL_CONFIG["repo_id"],
-            local_dir=self.model_path,
-            local_dir_use_symlinks=False,
-            resume_download=True,
-            max_workers=1
-        )
-
-    def load(self) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
-        """Load the model and tokenizer."""
+    def load(self) -> Tuple[LlamaForCausalLM, LlamaTokenizer]:
+        """Load the model and tokenizer directly from Hugging Face."""
         print("\n=== Starting Model Loading Process ===", file=sys.stderr)
         try:
-            local_path = self._ensure_model_files()
-
             print("\n=== Loading Tokenizer ===", file=sys.stderr)
-            tokenizer = AutoTokenizer.from_pretrained(
-                local_path,
+            tokenizer = LlamaTokenizer.from_pretrained(
+                MODEL_CONFIG["repo_id"],
+                use_auth_token=os.getenv('HF_TOKEN'),
                 **MODEL_CONFIG["tokenizer_params"]
             )
+            tokenizer.pad_token = tokenizer.eos_token
 
             print("\n=== Loading Model ===", file=sys.stderr)
-            model = AutoModelForCausalLM.from_pretrained(
-                local_path,
+            print("This may take several minutes...", file=sys.stderr)
+            model = LlamaForCausalLM.from_pretrained(
+                MODEL_CONFIG["repo_id"],
+                use_auth_token=os.getenv('HF_TOKEN'),
                 **MODEL_CONFIG["model_params"]
             )
 
@@ -85,7 +56,7 @@ class ModelLoader:
             raise
 
 class XPathGenerator:
-    def __init__(self, model: AutoModelForCausalLM, tokenizer: AutoTokenizer):
+    def __init__(self, model: LlamaForCausalLM, tokenizer: LlamaTokenizer):
         self.model = model
         self.tokenizer = tokenizer
 
@@ -130,13 +101,13 @@ class XPathGenerator:
             prompt = self._build_prompt(code, violation, ast, examples)
             print("\n=== Prompt ===\n", prompt, file=sys.stderr)
 
-            inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
-            outputs = self.model.generate(
-                **inputs,
-                pad_token_id=self.tokenizer.eos_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
-                **MODEL_CONFIG["generation_params"]
-            )
+            inputs = self.tokenizer(prompt, return_tensors="pt", padding=True).to(self.model.device)
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    pad_token_id=self.tokenizer.eos_token_id,
+                    **MODEL_CONFIG["generation_params"]
+                )
 
             xpath = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             return self._clean_xpath(xpath.strip())

@@ -14,8 +14,8 @@ DOCKER_IMAGE = "xpath-generator"
 CHECKSTYLE_JAR = Path(__file__).parent / "checkstyle-10.21.1-all.jar"
 
 # Import model configuration from inference script
-sys.path.append(str(PROJECT_ROOT / "docker"))
-from inference import MODEL_CONFIG
+sys.path.append(str(PROJECT_ROOT))
+from config import MODEL_CONFIG
 
 class CheckstyleRunner:
     def __init__(self, jar_path: Path = CHECKSTYLE_JAR):
@@ -131,8 +131,8 @@ class DockerRunner:
     def run_generation(self, input_data: Dict) -> Dict:
         """Run XPath generation in Docker container."""
         container_name = "xpath-generator-instance"
-        models_dir = PROJECT_ROOT / "models"
-        models_dir.mkdir(exist_ok=True)
+        models_dir = PROJECT_ROOT / "models" / MODEL_CONFIG["local_folder"]
+        models_dir.mkdir(parents=True, exist_ok=True)
 
         try:
             process = subprocess.run(
@@ -142,7 +142,7 @@ class DockerRunner:
                     "--dns", "8.8.8.8",
                     "--dns", "8.8.4.4",
                     "--name", container_name,
-                    "-v", f"{models_dir}:/models",
+                    "-v", f"{models_dir}:/models/{MODEL_CONFIG['local_folder']}",
                     "-e", f"HF_TOKEN={os.getenv('HF_TOKEN', '')}",
                     self.image_name
                 ],

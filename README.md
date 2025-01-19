@@ -39,8 +39,7 @@ mkdir -p models
 
 3. Build the Docker image:
 ```bash
-cd docker
-docker build -t xpath-generator .
+docker build -t xpath-generator -f docker/Dockerfile .
 ```
 
 4. Download Checkstyle (required for testing):
@@ -73,7 +72,7 @@ docker logs -f xpath-generator-instance
 
 ### Changing the Model
 
-To use a different model, update the `MODEL_CONFIG` in `docker/inference.py`:
+To use a different model, update the `MODEL_CONFIG` in `config.py`:
 
 ```python
 MODEL_CONFIG = {

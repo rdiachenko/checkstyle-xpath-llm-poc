@@ -24,11 +24,15 @@ RUN pip3 install --no-cache-dir \
     huggingface_hub>=0.27.1 \
     tqdm \
     requests \
-    urllib3>=2.3.0
+    urllib3>=2.3.0 \
+    sentencepiece \
+    protobuf \
+    safetensors
 
 WORKDIR /app
 
-COPY inference.py .
+COPY config.py .
+COPY docker/inference.py .
 
 RUN mkdir -p /models
 
