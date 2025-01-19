@@ -11,10 +11,12 @@ MODEL_CONFIG = {
         "padding_side": "left"
     },
     "generation_params": {
-        "max_new_tokens": 30,
+        "do_sample": True,
+        "temperature": 0.1,
+        "top_k": 10,
+        "top_p": 0.95,
         "num_beams": 5,
-        "early_stopping": True,
-        "temperature": 0.7,
-        "top_p": 0.95
+        "max_new_tokens": 30,
+        "early_stopping": True
     }
 }

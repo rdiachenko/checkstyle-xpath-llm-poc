@@ -30,13 +30,20 @@ class ModelLoader:
             print("Warning: No Hugging Face token found in HF_TOKEN env var", file=sys.stderr)
 
     def load(self) -> Tuple[LlamaForCausalLM, LlamaTokenizer]:
-        """Load the model and tokenizer directly from Hugging Face."""
+        """Load the model and tokenizer."""
         print("\n=== Starting Model Loading Process ===", file=sys.stderr)
         try:
+            # Check if model exists locally
+            local_files_exist = os.path.exists(self.model_path) and os.listdir(self.model_path)
+            source = self.model_path if local_files_exist else MODEL_CONFIG["repo_id"]
+            auth_token = None if local_files_exist else os.getenv('HF_TOKEN')
+
+            print(f"\nLoading from: {'local storage' if local_files_exist else 'Hugging Face'}", file=sys.stderr)
+
             print("\n=== Loading Tokenizer ===", file=sys.stderr)
             tokenizer = LlamaTokenizer.from_pretrained(
-                MODEL_CONFIG["repo_id"],
-                use_auth_token=os.getenv('HF_TOKEN'),
+                source,
+                use_auth_token=auth_token,
                 **MODEL_CONFIG["tokenizer_params"]
             )
             tokenizer.pad_token = tokenizer.eos_token
@@ -44,10 +51,18 @@ class ModelLoader:
             print("\n=== Loading Model ===", file=sys.stderr)
             print("This may take several minutes...", file=sys.stderr)
             model = LlamaForCausalLM.from_pretrained(
-                MODEL_CONFIG["repo_id"],
-                use_auth_token=os.getenv('HF_TOKEN'),
+                source,
+                use_auth_token=auth_token,
                 **MODEL_CONFIG["model_params"]
             )
+
+            # Save model locally if it was downloaded
+            if not local_files_exist:
+                print("\n=== Saving Model Locally ===", file=sys.stderr)
+                os.makedirs(self.model_path, exist_ok=True)
+                tokenizer.save_pretrained(self.model_path)
+                model.save_pretrained(self.model_path)
+                print(f"Model saved to: {self.model_path}", file=sys.stderr)
 
             return model, tokenizer
 
@@ -63,26 +78,28 @@ class XPathGenerator:
     def _build_prompt(self, code: str, violation: str, ast: str, examples: List[Dict]) -> str:
         """Build the prompt for XPath generation."""
         prompt_parts = [
-            "Generate an XPath expression to match a Checkstyle violation based on the provided AST tree and violation details.\n",
-            "Requirements:\n- The XPath expression should match the specific node causing the violation.\n- Use the structure of the AST tree to locate the offending element precisely.\n",
-            "Violation format:\n[ERROR] <File Name>:<Line>:<Column>: <Violation Description>. [<Violation Type>]\n",
-            "Example XPath expressions:\n"
+            "Generate an XPath expression to match a Checkstyle violation based on the given input.\n",
+            "Requirements:\n" +
+            "- The XPath must exactly match the specific identifier causing the violation\n" +
+            "- Use the identifier name from the input code in the XPath expression\n" +
+            "- Return only the XPath expression without any explanation\n",
+            "\nExample XPath patterns for MethodName violations:\n"
         ]
 
         for example in examples:
             prompt_parts.extend([
-                f"Code:\n{example['code']}\n",
-                f"AST Tree:\n{example['ast']}\n",
-                f"Violation:\n{example['violation']}\n",
-                f"XPath:\n{example['xpath']}\n\n"
+                f"Input code: {example['code']}",
+                f"Violation: {example['violation']}",
+                f"AST: {example['ast']}",
+                f"XPath: {example['xpath']}\n"
             ])
 
         prompt_parts.extend([
-            "Now generate the XPath for the following case:\n",
-            f"Code:\n{code}\n",
-            f"AST Tree:\n{ast}\n",
-            f"Violation:\n{violation}\n",
-            "Generate XPath expression:"
+            "\nNow generate the XPath for this input:",
+            f"Input code: {code}",
+            f"Violation: {violation}",
+            f"AST: {ast}",
+            "\nXPath:"
         ])
 
         return "\n".join(prompt_parts)

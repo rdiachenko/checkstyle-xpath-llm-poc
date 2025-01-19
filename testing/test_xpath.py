@@ -44,14 +44,14 @@ class CheckstyleRunner:
     def _create_baseline_config(self) -> str:
         """Create basic Checkstyle configuration with just MethodName check."""
         return '''<?xml version="1.0"?>
-<!DOCTYPE module PUBLIC
-    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-    "https://checkstyle.org/dtds/configuration_1_3.dtd">
-<module name="Checker">
-    <module name="TreeWalker">
-        <module name="MethodName"/>
-    </module>
-</module>'''
+        <!DOCTYPE module PUBLIC
+            "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+            "https://checkstyle.org/dtds/configuration_1_3.dtd">
+        <module name="Checker">
+            <module name="TreeWalker">
+                <module name="MethodName"/>
+            </module>
+        </module>'''
 
     def verify_xpath(self, java_code: str, xpath: str) -> Tuple[bool, Optional[str]]:
         """
@@ -63,8 +63,13 @@ class CheckstyleRunner:
              tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as baseline_config_file:
 
             java_file.write(java_code)
+            java_file.flush()
+
             config_file.write(self._create_config(xpath))
+            config_file.flush()
+
             baseline_config_file.write(self._create_baseline_config())
+            baseline_config_file.flush()
 
             try:
                 # First run without suppression to confirm violation exists
@@ -73,6 +78,7 @@ class CheckstyleRunner:
                     capture_output=True,
                     text=True
                 )
+                print("\nBefore xpath supression:\n", baseline_result.stdout)
 
                 if baseline_result.returncode == 0:
                     return False, "No violations found in the original code"
@@ -83,6 +89,7 @@ class CheckstyleRunner:
                     capture_output=True,
                     text=True
                 )
+                print("\nAfter xpath supression:\n", result.stdout)
 
                 # Check if specific violation was suppressed
                 if "Name 'BAD_Method' must match pattern" not in result.stdout:
@@ -98,18 +105,18 @@ class CheckstyleRunner:
     def _create_config(self, xpath: str) -> str:
         """Create Checkstyle configuration with XPath suppression."""
         return f'''<?xml version="1.0"?>
-<!DOCTYPE module PUBLIC
-    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-    "https://checkstyle.org/dtds/configuration_1_3.dtd">
-<module name="Checker">
-    <module name="TreeWalker">
-        <module name="MethodName"/>
-        <module name="SuppressionXpathSingleFilter">
-            <property name="checks" value="MethodName"/>
-            <property name="query" value="{xpath}"/>
-        </module>
-    </module>
-</module>'''
+        <!DOCTYPE module PUBLIC
+            "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+            "https://checkstyle.org/dtds/configuration_1_3.dtd">
+        <module name="Checker">
+            <module name="TreeWalker">
+                <module name="MethodName"/>
+                <module name="SuppressionXpathSingleFilter">
+                    <property name="checks" value="MethodName"/>
+                    <property name="query" value="{xpath}"/>
+                </module>
+            </module>
+        </module>'''
 
 class DockerRunner:
     def __init__(self, image_name: str = DOCKER_IMAGE):
@@ -186,6 +193,18 @@ public class Example {
                     "violation": "[ERROR] Test.java:1:33: Name 'INVALID_Method' must match pattern '^[a-z][a-zA-Z0-9]*$'. [MethodName]",
                     "xpath": "//METHOD_DEF/IDENT[@text='INVALID_Method']",
                     "ast": checkstyle.get_ast("public class Test { public void INVALID_Method() { long a = 1; } }")
+                },
+                {
+                    "code": "public class Test { public void BAD_Fun() { int b = 7; } }",
+                    "violation": "[ERROR] Test.java:1:33: Name 'BAD_Fun' must match pattern '^[a-z][a-zA-Z0-9]*$'. [MethodName]",
+                    "xpath": "//METHOD_DEF/IDENT[@text='BAD_Fun']",
+                    "ast": checkstyle.get_ast("public class Test { public void BAD_Fun() { int b = 7; } }")
+                },
+                {
+                    "code": "public class Test { public void BAD_method() { } }",
+                    "violation": "[ERROR] Test.java:1:33: Name 'BAD_method' must match pattern '^[a-z][a-zA-Z0-9]*$'. [MethodName]",
+                    "xpath": "//METHOD_DEF/IDENT[@text='BAD_method']",
+                    "ast": checkstyle.get_ast("public class Test { public void BAD_method() { } }")
                 }
             ]
         }

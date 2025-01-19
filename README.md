@@ -17,11 +17,11 @@ checkstyle-xpath-llm-poc/
 ├── config.py                   # Model and generation parameters
 │
 ├── docker/                     # Docker-related files
-│   ├── Dockerfile             # Optimized for LLM inference
-│   └── inference.py           # Core XPath generation script
+│   ├── Dockerfile              # Optimized for LLM inference
+│   └── inference.py            # Core XPath generation script
 │
 ├── testing/                    # Testing infrastructure
-│   └── test_xpath.py          # Testing and validation script
+│   └── test_xpath.py           # Testing and validation script
 │
 ├── models/                     # Directory for downloaded models (gitignored)
 └── README.md
@@ -72,19 +72,11 @@ docker logs -f xpath-generator-instance
 
 ## Configuration
 
-### Changing the Model
-
-To use a different model, update the `MODEL_CONFIG` in `config.py`:
-
-```python
-MODEL_CONFIG = {
-    "repo_id": "model-repo/name",
-    "local_folder": "model-folder",
-    "model_params": {
-        # model specific parameters
-    }
-}
-```
+The model and generation parameters can be configured in `config.py`. Key settings include:
+- Model repository and local folder
+- Model parameters (dtype, device mapping, etc.)
+- Tokenizer parameters
+- Generation parameters (beam size, temperature, etc.)
 
 ## Limitations
 
