@@ -14,6 +14,8 @@ A proof of concept for generating Checkstyle XPath suppressions using LLMs. This
 ```
 checkstyle-xpath-llm-poc/
 │
+├── config.py                   # Model and generation parameters
+│
 ├── docker/                     # Docker-related files
 │   ├── Dockerfile             # Optimized for LLM inference
 │   └── inference.py           # Core XPath generation script
