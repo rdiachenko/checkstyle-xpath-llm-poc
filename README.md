@@ -21,7 +21,8 @@ checkstyle-xpath-llm-poc/
 │   └── inference.py            # Core XPath generation script
 │
 ├── testing/                    # Testing infrastructure
-│   └── test_xpath.py           # Testing and validation script
+│   ├── test_inference.py       # Unit tests for inference logic
+│   └── test_xpath.py           # End-to-end testing and validation script
 │
 ├── models/                     # Directory for downloaded models (gitignored)
 └── README.md
@@ -57,6 +58,11 @@ Run the test script to see the XPath generation in action:
 ```bash
 cd testing
 python3 test_xpath.py
+```
+
+Run the unit tests without Docker or a downloaded model:
+```bash
+python3 -m unittest testing/test_inference.py
 ```
 
 The script will:

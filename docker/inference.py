@@ -126,7 +126,9 @@ class XPathGenerator:
                     **MODEL_CONFIG["generation_params"]
                 )
 
-            xpath = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            input_length = inputs["input_ids"].shape[1]
+            generated_tokens = outputs[0][input_length:]
+            xpath = self.tokenizer.decode(generated_tokens, skip_special_tokens=True)
             return self._clean_xpath(xpath.strip())
 
         except Exception as e:
